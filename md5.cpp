@@ -1,8 +1,10 @@
 #include <cstdint>
 #include <iostream>
+#include <math.h>
 #include <vector>
 using namespace std;
 
+using dword = uint64_t;
 using word = uint32_t;
 using byte = uint8_t;
 
@@ -45,18 +47,19 @@ word I(word x, word y, word z);
 
 int main()
 {
-    md5("test1sdfdf sdfsdfsdfsdf fsdsdgdh ndfk ndfjfknv dfkbjfn bd bkjbndfkjbn dfbjn");
+    md5("test1");
 }
 
 //Add length in 64 bit form NOTICE: CANNOT HANDLE LENGTH OF MORE THAN 64 bits
 void md5(string input)
 {
-    vector<word> data;
+    //DOWNLOAD DATA IN BYTES
+    vector<byte> data;
 
     //Load data
     for(int i = 0; i < input.length(); i++)
         data.push_back(input.at(i));
-    uint64_t length = data.size();
+    dword length = data.size();
 
     //Need to pad so that data is 512k + 448 bits long, or 64k + 56 bytes long
     int padbytes = 56 - (data.size() % 64); //Determines how much is "left over" after 512, and makes that the pad bytes length
@@ -75,15 +78,29 @@ void md5(string input)
     for(int i = 0; i < 4; i++)
     {
         int shift = i*8;
-        uint64_t mask = 0xff000000 >> shift;
-        uint64_t masked = length & mask;
+        dword mask = 0xff000000 >> shift;
+        dword masked = length & mask;
         data.push_back( (masked << shift) >> 24 );
 
         cout << ((masked << shift) >> 24) << endl;
     }
 
+    //CONVERT DATA FROM BYTES TO WORDS
+    vector<word> worddata;
+    for(int w = 0; w < data.size()/4; w++)
+    {
+        word currWord = 0;
+        for(int b = 0; b < 4; b++)
+        {
+            byte currByte = data.at(w*4+b);
+            currWord += currByte * pow(2, b*4);
+        }
+
+        worddata.push_back(currWord);
+    }
+
     //Perform hash
-    vector<word> out = md5Loop(data);
+    vector<word> out = md5Loop(worddata);
 
     /* Print hash */
     for(int i = 0; i < 4; i++)
@@ -118,7 +135,7 @@ vector<word> md5Loop(vector<word> data)
         a = round1(x, a, b, c, d, 0, 7, 1);
         d = round1(x, d, a, b, c, 1, 12, 2);
         c = round1(x, c, d, a, b, 2, 17, 3);
-        b = round1(x, b, c, d, a, 3, 22, 1);
+        b = round1(x, b, c, d, a, 3, 22, 4);
 
         a = round1(x, a, b, c, d, 4, 7, 5);
         d = round1(x, d, a, b, c, 5, 12, 6);
@@ -174,10 +191,10 @@ vector<word> md5Loop(vector<word> data)
         c = round3(x, c, d, a, b, 3, 16, 43);
         b = round3(x, b, c, d, a, 6, 23, 44);
 
-        a = round3(x, a, b, c, d, 4, 6, 61);
-        d = round3(x, d, a, b, c, 1, 10, 62);
-        c = round3(x, c, d, a, b, 2, 15, 63);
-        b = round3(x, b, c, d, a, 9, 21, 64);
+        a = round3(x, a, b, c, d, 9, 4, 45);
+        d = round3(x, d, a, b, c, 12, 11, 46);
+        c = round3(x, c, d, a, b, 15, 16, 47);
+        b = round3(x, b, c, d, a, 2, 23, 48);
 
         /* Round 4. */
         /* Perform round4(x, abcd kst) */
@@ -213,28 +230,28 @@ vector<word> md5Loop(vector<word> data)
 
 word round1(word x[], word a, word b, word c, word d, word k, word s, word i)
 {
-    word mid = a + F(b,c,d) + x[k] + T[i];
+    word mid = a + F(b,c,d) + x[k] + T[i-1];
     mid <<= s;
     return b + mid;
 }
 
 word round2(word x[], word a, word b, word c, word d, word k, word s, word i)
 {
-    word mid = a + G(b,c,d) + x[k] + T[i];
+    word mid = a + G(b,c,d) + x[k] + T[i-1];
     mid <<= s;
     return b + mid;
 }
 
 word round3(word x[], word a, word b, word c, word d, word k, word s, word t)
 {
-    word mid = a + H(b,c,d) + x[k] + T[t];
+    word mid = a + H(b,c,d) + x[k] + T[t-1];
     mid <<= s;
     return b+mid;
 }
 
 word round4(word x[], word a, word b, word c, word d, word k, word s, word t)
 {
-    word mid = a + I(b,c,d) + x[k] + T[t];
+    word mid = a + I(b,c,d) + x[k] + T[t-1];
     mid <<= s;
     return b+mid;
 }
